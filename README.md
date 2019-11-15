@@ -35,8 +35,8 @@ Options:
 3. Beautify and replace response body.
 
 ### Notice
-1. It may will modify data, such as: beautifying xml will add the `<?xml version="1.0" encoding="UTF-8"?>`, beautifying html will repair html tag.
-2. Assuming the resquest/response body is utf-8, so if the body is not utf8 encoding or compatible with utf8, it may not work well.
+1. It may modify data, such as: beautifying xml will add the `<?xml version="1.0" encoding="UTF-8"?>` header, beautifying html will repair html tag.
+2. Assuming the request/response body is utf-8, so if the body is not utf8 encoding or compatible with utf8, it may not work well.
 3. Not considering gzip/deflate compress/decompress, so need the Proxy->Options->Miscellaneous->Unpack gzip/deflate in response is enabled (ON by default)
 
 ### Limitations
