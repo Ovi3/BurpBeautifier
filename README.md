@@ -40,5 +40,5 @@ Options:
 3. Not considering gzip/deflate compress/decompress, so need the Proxy->Options->Miscellaneous->Unpack gzip/deflate in response is enabled (ON by default)
 
 ### Limitations
-1. Installation is not convenient. Not like Java extension, just add a jar file.
+1. Installation is not convenient. Not like extension writing in Java, just add a jar file.
 2. Jython is slow. So It will not beautify if size excess dataMaxSize(default is 680KB)
