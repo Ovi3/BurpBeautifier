@@ -33,6 +33,7 @@ Options:
    - XML: use xml module
 2. Writing in Jython, modify source code conveniently. eg: Modify the beautify function to change how to beautify.
 3. Beautify and replace response body.
+4. Option setting persistence.
 
 ### Notice
 1. It may modify data, such as: beautifying xml will add the `<?xml version="1.0" encoding="UTF-8"?>` header, beautifying html will repair html tag.
