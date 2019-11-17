@@ -21,6 +21,7 @@ from java.awt import GridBagLayout, GridBagConstraints, BorderLayout, GridLayout
 from java.awt import Dimension, Color, Component
 
 import re
+import json
 from threading import Thread
 import xml.dom.minidom
 
@@ -51,6 +52,28 @@ F_JS = "JavaScript"
 F_JSON = "JSON"
 F_HTML = "HTML"
 F_XML = "XML"
+
+supportedFormats = [F_JS, F_JSON, F_HTML, F_XML]
+
+options = {
+    "messageEditorTabFormat": {
+        F_JS: True,
+        F_JSON: True,
+        F_HTML: False,
+        F_XML: False,
+    },
+    "replaceProxyResponse": {
+        "enable": False,
+        "formats": {
+            F_JS: True,
+            F_JSON: False,
+            F_HTML: False,
+            F_XML: False,
+        },
+        "include": [],
+        "exclude": []
+    }
+}
 
 def contentType2Format(contentType):
     contentType = contentType.lower()  # lower first
@@ -156,9 +179,11 @@ class BurpExtender(IBurpExtender, ITab, IMessageEditorTabFactory, IHttpListener)
 
         callbacks.setExtensionName("Beautifier")
 
+        self.loadOptions()
+
         self.mainTabbedPane = JTabbedPane()
         self.mainTabbedPane.addTab("Beautify", BeautifierPanel())
-        self.mainTabbedPane.addTab("Options", BeautifierOptionsPanel())
+        self.mainTabbedPane.addTab("Options", BeautifierOptionsPanel(self))
 
         callbacks.addSuiteTab(self)
         callbacks.registerMessageEditorTabFactory(self)
@@ -183,7 +208,13 @@ class BurpExtender(IBurpExtender, ITab, IMessageEditorTabFactory, IHttpListener)
             return
 
         requestInfo = self._helpers.analyzeRequest(messageInfo)
-        url = requestInfo.getUrl()
+        url = requestInfo.getUrl().toString()
+        # remove the port part
+        if url.startswith("https://"):
+            url = url.replace(":443", "", 1)
+        if url.startswith("http://"):
+            url = url.replace(":80", "", 1)
+
         responseContent = messageInfo.getResponse()
         responseInfo = self._helpers.analyzeResponse(responseContent)
         head = responseContent[:responseInfo.getBodyOffset()].tostring()
@@ -208,7 +239,7 @@ class BurpExtender(IBurpExtender, ITab, IMessageEditorTabFactory, IHttpListener)
             return
 
         if not options.get("replaceProxyResponse").get("formats").get(format):
-            return False
+            return
 
         includePatterns = options.get("replaceProxyResponse").get("include", [])
         if includePatterns:
@@ -232,13 +263,21 @@ class BurpExtender(IBurpExtender, ITab, IMessageEditorTabFactory, IHttpListener)
 
         if isInclude and not isExclude:
             try:
-                print("body", body.__repr__())
                 result = beautify(body, format, raise_exception=True)
                 head = re.sub(r"(?i)\r\ncontent\-length:[ \t]*\d+\r\n", "\r\nContent-Length: %d\r\n" % len(result), head)
                 messageInfo.setResponse(head + result)
                 print("[+] Replace Response of %s (%s) " % (url, format))
             except BeautifyException as e:
                 print("[-] Replace Response of %s (%s) error: %s" %(url, format, e))
+
+    def loadOptions(self):
+        optionsStr = self._callbacks.loadExtensionSetting("options")  # <unicode> or None
+        if optionsStr and len(optionsStr) > 0:
+            try:
+                optionsJson = json.loads(optionsStr)
+                options.update(optionsJson)
+            except:
+                return
 
 
 class BeautifierTab(IMessageEditorTab):
@@ -317,27 +356,6 @@ class BeautifierTab(IMessageEditorTab):
     def getSelectedData(self):
         return self._txtInput.getSelectedText()
 
-
-supportedFormats = [F_JS, F_JSON, F_HTML, F_XML]
-options = {
-    "messageEditorTabFormat": {
-        F_JS: True,
-        F_JSON: True,
-        F_HTML: False,
-        F_XML: False,
-    },
-    "replaceProxyResponse": {
-        "enable": False,
-        "formats": {
-            F_JS: True,
-            F_JSON: False,
-            F_HTML: False,
-            F_XML: False,
-        },
-        "include": [],
-        "exclude": []
-    }
-}
 
 class BeautifierPanel(JPanel):
     def __init__(self):
@@ -472,8 +490,10 @@ class BeautifierPanel(JPanel):
 
 
 class BeautifierOptionsPanel(JScrollPane):
-    def __init__(self):
+    def __init__(self, extender):
         super(BeautifierOptionsPanel, self).__init__()
+        self._extender = extender
+
         self.contentWrapper = JPanel(GridBagLayout())
         self.setViewportView(self.contentWrapper)
         self.getVerticalScrollBar().setUnitIncrement(16)
@@ -511,12 +531,12 @@ class BeautifierOptionsPanel(JScrollPane):
             self.replaceResponseFormatCheckBoxs.append(ckb)
         replaceResponseIncludeLabel = JLabel("Include URL that matches below(one item one line)")
         self.URLIncludeTextArea = JTextArea(6, 32)
-        self.URLIncludeTextArea.addFocusListener(self.URLIncludeFocusListener())
+        self.URLIncludeTextArea.addFocusListener(self.URLIncludeFocusListener(self))
         URLIncludeScrollPane = JScrollPane(self.URLIncludeTextArea)
         URLIncludeScrollPane.setAlignmentX(Component.LEFT_ALIGNMENT)
         replaceResponseExcludeLabel = JLabel("Exclude URL that matches below(one item one line)")
         self.URLExcludeTextArea = JTextArea(5, 32)
-        self.URLExcludeTextArea.addFocusListener(self.URLExcludeFocusListener())
+        self.URLExcludeTextArea.addFocusListener(self.URLExcludeFocusListener(self))
         URLExcludeScrollPane = JScrollPane(self.URLExcludeTextArea)
         URLExcludeScrollPane.setAlignmentX(Component.LEFT_ALIGNMENT)
 
@@ -582,10 +602,16 @@ class BeautifierOptionsPanel(JScrollPane):
             format = chb.getText()
             chb.setSelected(options.get("replaceProxyResponse").get("formats").get(format))
 
+        self.URLIncludeTextArea.setText("\n".join(options.get("replaceProxyResponse").get("include",[])))
+        self.URLExcludeTextArea.setText("\n".join(options.get("replaceProxyResponse").get("exclude",[])))
+
         if self.chkEnableReplace.isSelected():
             self.enableReplaceResponseDisplay()
         else:
             self.disableReplaceResponseDisplay()
+
+    def saveOptions(self):
+        self._extender._callbacks.saveExtensionSetting("options", json.dumps(options))
 
     def messageTabFormatListener(self, e):
         format = e.getSource().getText()
@@ -593,6 +619,7 @@ class BeautifierOptionsPanel(JScrollPane):
             options.get("messageEditorTabFormat").update({format: True})
         else:
             options.get("messageEditorTabFormat").update({format: False})
+        self.saveOptions()
 
     def repalceResponseBoxListener(self, e):
         if e.getStateChange() == ItemEvent.SELECTED:
@@ -601,6 +628,7 @@ class BeautifierOptionsPanel(JScrollPane):
         else:
             options.get("replaceProxyResponse").update({"enable": False})
             self.disableReplaceResponseDisplay()
+        self.saveOptions()
 
     def replaceResponseFormatListener(self, e):
         format = e.getSource().getText()
@@ -608,26 +636,35 @@ class BeautifierOptionsPanel(JScrollPane):
             options.get("replaceProxyResponse").get("formats").update({format: True})
         else:
             options.get("replaceProxyResponse").get("formats").update({format: False})
+        self.saveOptions()
 
     class URLIncludeFocusListener(FocusListener):
+        def __init__(self, beautifierOptionsPanel):
+            super(BeautifierOptionsPanel.URLIncludeFocusListener, self).__init__()
+            self.beautifierOptionsPanel = beautifierOptionsPanel
+
         def focusGained(self, e):
             pass
 
         def focusLost(self, e):
             text = e.getSource().getText()  # <unicode>
-            text = text.encode("utf-8")  # <str>
-            urlPatterns = [p.strip() for p in text.split("\n") if p != ""]
+            urlPatterns = [p.strip() for p in text.split("\n") if p.strip() != ""]
             options.get("replaceProxyResponse").update({"include": urlPatterns})
+            self.beautifierOptionsPanel.saveOptions()
 
     class URLExcludeFocusListener(FocusListener):
+        def __init__(self, beautifierOptionsPanel):
+            super(BeautifierOptionsPanel.URLExcludeFocusListener, self).__init__()
+            self.beautifierOptionsPanel = beautifierOptionsPanel
+
         def focusGained(self, e):
             pass
 
         def focusLost(self, e):
-            text = e.getSource().getText()
-            text = text.encode("utf-8")
-            urlPatterns = [p.strip() for p in text.split("\n") if p != ""]
+            text = e.getSource().getText()  # <unicode>
+            urlPatterns = [p.strip() for p in text.split("\n") if p.strip() != ""]
             options.get("replaceProxyResponse").update({"exclude": urlPatterns})
+            self.beautifierOptionsPanel.saveOptions()
 
 
 def main():
