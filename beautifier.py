@@ -4,10 +4,12 @@ from burp import IBurpExtender
 from burp import IMessageEditorTabFactory
 from burp import IMessageEditorTab
 from burp import IHttpListener
+from burp import IContextMenuFactory
+from burp import IContextMenuInvocation
 from burp import IBurpExtenderCallbacks
 from burp import ITab
 
-from javax.swing import JFrame, JPanel, JButton, JLabel, JTextArea
+from javax.swing import JFrame, JPanel, JButton, JLabel, JTextArea, JMenu, JMenuItem
 from javax.swing import JScrollPane, JTabbedPane
 from javax.swing import JCheckBox, JComboBox
 from javax.swing import Box, BorderFactory
@@ -171,7 +173,7 @@ class BeautifyThread(Thread):
             self.callback(result)
 
 
-class BurpExtender(IBurpExtender, ITab, IMessageEditorTabFactory, IHttpListener):
+class BurpExtender(IBurpExtender, ITab, IMessageEditorTabFactory, IHttpListener, IContextMenuFactory):
     # implement IBurpExtender
     def	registerExtenderCallbacks(self, callbacks):
         self._callbacks = callbacks
@@ -182,21 +184,69 @@ class BurpExtender(IBurpExtender, ITab, IMessageEditorTabFactory, IHttpListener)
         self.loadOptions()
 
         self.mainTabbedPane = JTabbedPane()
-        self.mainTabbedPane.addTab("Beautify", BeautifierPanel())
-        self.mainTabbedPane.addTab("Options", BeautifierOptionsPanel(self))
+        self.beautifierPanel = BeautifierPanel()
+        self.beautifierOptionsPanel = BeautifierOptionsPanel(self)
+        self.mainTabbedPane.addTab("Beautify", self.beautifierPanel)
+        self.mainTabbedPane.addTab("Options", self.beautifierOptionsPanel)
+
+        self.selectedMessage = None
 
         callbacks.addSuiteTab(self)
         callbacks.registerMessageEditorTabFactory(self)
         callbacks.registerHttpListener(self)
+        callbacks.registerContextMenuFactory(self)
 
     # implement IMessageEditorTabFactory
     def createNewInstance(self, controller, editable):
         return BeautifierTab(self, controller, editable)
 
+    # implement IContextMenuFactory
+    def createMenuItems(self, invocation):
+        iContext = invocation.getInvocationContext()
+        self.selectedMessage = invocation.getSelectedMessages()[0]
+
+        menuItems = []
+        sendRequestMenu = JMenuItem("Send request to Beautifier")
+        sendRequestMenu.addActionListener(self.sendRequestToBeautifier)
+        sendResponseMenu = JMenuItem("Send response to Beautifier")
+        sendResponseMenu.addActionListener(self.sendResponseToBeautifier)
+
+        if iContext == IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_REQUEST or \
+            iContext == IContextMenuInvocation.CONTEXT_MESSAGE_VIEWER_REQUEST:
+            menuItems.append(sendRequestMenu)
+        elif iContext == IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_RESPONSE or \
+            iContext == IContextMenuInvocation.CONTEXT_MESSAGE_VIEWER_RESPONSE:
+            menuItems.append(sendResponseMenu)
+        elif iContext == IContextMenuInvocation.CONTEXT_PROXY_HISTORY:
+            menuItems.append(sendRequestMenu)
+            menuItems.append(sendResponseMenu)
+
+        return menuItems
+
+    def sendRequestToBeautifier(self, e):
+        if self.selectedMessage:
+            requestContent = self.selectedMessage.getRequest()
+            requestInfo = self._helpers.analyzeRequest(self.selectedMessage)
+            body = requestContent[requestInfo.getBodyOffset():].tostring()  # <str> type
+            if len(body) == 0:
+                return
+            self.beautifierPanel.setText(body)
+
+    def sendResponseToBeautifier(self, e):
+        if self.selectedMessage:
+            responseContent = self.selectedMessage.getResponse()
+            responseInfo = self._helpers.analyzeResponse(responseContent)
+            body = responseContent[responseInfo.getBodyOffset():].tostring()  # <str> type
+            if len(body) == 0:
+                return
+            self.beautifierPanel.setText(body)
+
+
     # implement ITab
     def getTabCaption(self):
         return "Beautifier"
 
+    # implement ITab
     def getUiComponent(self):
         return self.mainTabbedPane
 
@@ -430,6 +480,9 @@ class BeautifierPanel(JPanel):
                 super(BeautifierPanel.CustomUndoPlainDocument, self).replace(offset, length, text, attrs)
                 self.compoundEdit.end()
                 self.compoundEdit = None
+
+    def setText(self, text):
+        self.beautifyTextArea.setText(text)
 
     def setRunningState(self):
         self.beautifyButton.setText("Cancel")
