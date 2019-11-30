@@ -206,9 +206,9 @@ class BurpExtender(IBurpExtender, ITab, IMessageEditorTabFactory, IHttpListener,
         self.selectedMessage = invocation.getSelectedMessages()[0]
 
         menuItems = []
-        sendRequestMenu = JMenuItem("Send request to Beautifier")
+        sendRequestMenu = JMenuItem("Send to Beautifier (request)")
         sendRequestMenu.addActionListener(self.sendRequestToBeautifier)
-        sendResponseMenu = JMenuItem("Send response to Beautifier")
+        sendResponseMenu = JMenuItem("Send to Beautifier (response)")
         sendResponseMenu.addActionListener(self.sendResponseToBeautifier)
 
         if iContext == IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_REQUEST or \
