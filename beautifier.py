@@ -9,7 +9,7 @@ from burp import IContextMenuInvocation
 from burp import IBurpExtenderCallbacks
 from burp import ITab
 
-from javax.swing import JFrame, JPanel, JButton, JLabel, JTextArea, JMenu, JMenuItem
+from javax.swing import JFrame, JPanel, JButton, JLabel, JTextArea, JMenuItem
 from javax.swing import JScrollPane, JTabbedPane
 from javax.swing import JCheckBox, JComboBox
 from javax.swing import Box, BorderFactory
@@ -19,7 +19,7 @@ from javax.swing.undo import UndoManager, CompoundEdit
 from javax.swing.event import UndoableEditEvent, DocumentListener
 from javax.swing.text import PlainDocument
 from java.awt.event import ItemEvent, FocusListener
-from java.awt import GridBagLayout, GridBagConstraints, BorderLayout, GridLayout, FlowLayout
+from java.awt import GridBagLayout, GridBagConstraints, BorderLayout, FlowLayout
 from java.awt import Dimension, Color, Component
 
 import re
@@ -118,7 +118,9 @@ def beautify(data, format, raise_exception=False, beautify_html=True):
             # if data is <str> type, result is <str> too; if data is <unicode> type, result is <unicode> too
             result = jsbeautifier.beautify(data)
         elif format == F_JSON:
-            result = jsbeautifier.beautify(data)
+            opts = jsbeautifier.default_options()
+            opts.preserve_newlines = False
+            result = jsbeautifier.beautify(data, opts)
         elif format == F_HTML:
             soup = BeautifulSoup(data, features="html.parser")
             # beautify jscode in html
