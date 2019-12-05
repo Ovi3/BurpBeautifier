@@ -18,7 +18,7 @@ from javax.swing import BoxLayout
 from javax.swing.undo import UndoManager, CompoundEdit
 from javax.swing.event import UndoableEditEvent, DocumentListener
 from javax.swing.text import PlainDocument
-from java.awt.event import ItemEvent, FocusListener
+from java.awt.event import ItemEvent, FocusListener, MouseAdapter
 from java.awt import GridBagLayout, GridBagConstraints, BorderLayout, FlowLayout
 from java.awt import Dimension, Color, Component
 
@@ -552,6 +552,7 @@ class BeautifierOptionsPanel(JScrollPane):
         self.contentWrapper = JPanel(GridBagLayout())
         self.setViewportView(self.contentWrapper)
         self.getVerticalScrollBar().setUnitIncrement(16)
+        self.addMouseListener(self.RequestFocusListener(self))  # Let textArea lose focus when click empty area
 
         innerContainer = JPanel(GridBagLayout())
         innerContainer.setFocusable(True)  # make sure the maxSizeText TextField is not focused when BeautifierOptionsPanel display
@@ -700,6 +701,14 @@ class BeautifierOptionsPanel(JScrollPane):
     def saveOptions(self):
         if self._extender:
             self._extender._callbacks.saveExtensionSetting("options", json.dumps(options))
+
+    class RequestFocusListener(MouseAdapter):
+        def __init__(self, beautifierOptionsPanel):
+            super(BeautifierOptionsPanel.RequestFocusListener, self).__init__()
+            self.beautifierOptionsPanel = beautifierOptionsPanel
+
+        def mouseClicked(self, e):
+            self.beautifierOptionsPanel.requestFocusInWindow()
 
     class MaxSizeTextListener(FocusListener):
         def __init__(self, beautifierOptionsPanel):
