@@ -34,6 +34,7 @@ from bs4 import BeautifulSoup
 # "xxContentTypes" below is lower-case
 jsContentTypes = [
     "application/javascript",
+    "application/x-javascript",
     "text/javascript"
 ]
 jsonContentTypes = [
@@ -46,7 +47,8 @@ htmlContentTypes = [
 ]
 xmlContentTypes = [
     "text/xml",
-    "application/xml"
+    "application/xml",
+    "image/svg+xml"
 ]
 
 # formats (string constants)
@@ -284,7 +286,7 @@ class BurpExtender(IBurpExtender, ITab, IMessageEditorTabFactory, IHttpListener,
 
         if format is None:
             inferredMimeType = responseInfo.getInferredMimeType()
-            if inferredMimeType == "JSON":  # In this case: The content-type of response is text/plain but the body is JSON
+            if inferredMimeType == "JSON":  # Maybe the content-type of response is text/plain but the body is JSON
                 format = F_JSON
 
         if format is None:
