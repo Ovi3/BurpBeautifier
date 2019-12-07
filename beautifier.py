@@ -48,7 +48,7 @@ htmlContentTypes = [
 xmlContentTypes = [
     "text/xml",
     "application/xml",
-    # "image/svg+xml"
+    "image/svg+xml"
 ]
 
 # formats (string constants)
