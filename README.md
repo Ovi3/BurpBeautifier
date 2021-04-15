@@ -2,9 +2,12 @@ BurpBeautifier is a Burpsuite extension for beautifying request/response body, s
 
 
 ### Installation
-Install from BApp:
-1. Visit [Jython Offical Site](https://www.jython.org/download), and download Jython Standalone jar file.
-2. Open Burpsuite, goto Extender -> Options -> Python Environment, set the Location of Jython Jar. And goto Extender -> BApp Store, find Burp Beautifier and install it.
+~~Install from BApp Store:~~
+
+1. ~~Visit [Jython Offical Site](https://www.jython.org/download), and download Jython Standalone jar file.~~
+2. ~~Open Burpsuite, goto Extender -> Options -> Python Environment, set the Location of Jython Jar. And goto Extender -> BApp Store, find Burp Beautifier and install it.~~
+
+(BurpBeautifier had been removed from BApp Store since the new version of Burpsuite already has beautify function.)
 
 
 Manual Install:
